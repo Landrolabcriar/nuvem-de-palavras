@@ -80,3 +80,4 @@ Para publicar, envie `index.html`, `style.css`, `script.js` e `README.md` para a
 - Palavras expiram após dois minutos; a nuvem mantém no máximo 80 palavras.
 # nuvem-de-palavras
 # nuvem-de-palavras
+# nuvem-de-palavras
