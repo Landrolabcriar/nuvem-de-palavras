@@ -79,3 +79,4 @@ Para publicar, envie `index.html`, `style.css`, `script.js` e `README.md` para a
 - Repetir uma palavra já presente na tela aumenta seu tamanho e pulsa, sem uma nova gravação no banco. Essa repetição em memória é local à aba; novas palavras são sincronizadas pelo Realtime.
 - Palavras expiram após dois minutos; a nuvem mantém no máximo 80 palavras.
 # nuvem-de-palavras
+# nuvem-de-palavras
