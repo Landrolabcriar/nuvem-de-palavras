@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="description" content="Uma nuvem de palavras compartilhada em tempo real.">
+  <title>Nuvem de Palavras Realtime</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Nuvem de Palavras Realtime">
+        <span class="brand-mark" aria-hidden="true">✳</span>
+        <span>Nuvem de <strong>Palavras</strong></span>
+      </a>
+      <div id="connection" class="connection connecting" role="status" aria-live="polite">
+        <span class="connection-light" aria-hidden="true"></span>
+        <span id="connection-label">Conectando...</span>
+      </div>
+    </header>
+
+    <section class="intro" aria-label="Instruções">
+      <p class="eyebrow">UMA IDEIA PUXA A OUTRA</p>
+      <h1>O que está na sua <span>mente?</span></h1>
+      <p class="intro-copy">Adicione uma palavra e veja a nuvem crescer, em tempo real.</p>
+    </section>
+
+    <section id="cloud" class="cloud" aria-label="Nuvem de palavras"></section>
+
+    <div class="cloud-count" aria-live="polite">
+      <span class="count-orbit" aria-hidden="true"></span>
+      <span><strong id="word-count">0</strong> palavras na nuvem</span>
+    </div>
+
+    <form id="word-form" class="word-form">
+      <label class="sr-only" for="word-input">Digite uma palavra (máximo de 20 caracteres)</label>
+      <span class="input-icon" aria-hidden="true">✦</span>
+      <input id="word-input" type="text" maxlength="20" placeholder="Uma palavra..." autocomplete="off" required>
+      <span id="input-count" class="input-count">0/20</span>
+      <button id="submit-button" type="submit">
+        <span>Enviar</span><span class="send-icon" aria-hidden="true">↗</span>
+      </button>
+    </form>
+
+    <p class="input-hint">Pressione <kbd>Enter ↵</kbd> para adicionar</p>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div class="glow glow-left" aria-hidden="true"></div>
+    <div class="glow glow-right" aria-hidden="true"></div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="script.js"></script>
+</body>
+</html>
