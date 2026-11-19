@@ -4,7 +4,6 @@ const SUPABASE_ANON_KEY = "sb_publishable_lWOy9UtBAHXrFsSBSLMDWQ_LiYjgDuW";
 const TABLE_NAME = "palavras_nuvem";
 const MAX_WORD_LENGTH = 20;
 const MAX_WORDS = 80;
-const WORD_LIFETIME_MS = 2 * 60 * 1000;
 const MAX_FONT_SIZE = 68;
 const WORD_COLORS = ["#b69cff", "#4de8f2", "#a9f45b", "#ff76bd", "#ffe36e"];
 
@@ -47,54 +46,20 @@ function updateWordCount() {
   elements.wordCount.textContent = String(wordsByText.size);
 }
 
-function removeWord(entry) {
-  if (wordsByText.get(entry.text) !== entry) return;
-  clearTimeout(entry.expirationTimer);
-  clearTimeout(entry.fadeTimer);
-  entry.element.remove();
-  wordsByText.delete(entry.text);
+function evictOldestWord() {
+  const oldest = [...wordsByText.values()].reduce(
+    (candidate, word) => word.createdAt < candidate.createdAt ? word : candidate
+  );
+  if (!oldest) return;
+
+  wordsByText.delete(oldest.text);
+  oldest.element.remove();
   updateWordCount();
 }
 
-function beginFade(entry) {
-  if (wordsByText.get(entry.text) !== entry || entry.isFading) return;
-  entry.isFading = true;
-  entry.element.classList.add("is-fading");
-  entry.fadeTimer = setTimeout(() => removeWord(entry), 750);
-}
-
-function scheduleExpiration(entry) {
-  clearTimeout(entry.expirationTimer);
-  entry.expirationTimer = setTimeout(
-    () => beginFade(entry),
-    Math.max(0, entry.expiresAt - Date.now())
-  );
-}
-
-function pulseWord(entry, { extendLifetime = false, expiration = 0 } = {}) {
-  if (entry.isFading) {
-    clearTimeout(entry.fadeTimer);
-    entry.element.classList.remove("is-fading");
-    entry.isFading = false;
-  }
-
+function growWord(entry) {
   entry.fontSize = Math.min(entry.fontSize + 4, MAX_FONT_SIZE);
   entry.label.style.fontSize = `${entry.fontSize}px`;
-  entry.element.classList.remove("is-pulsing");
-  void entry.element.offsetWidth;
-  entry.element.classList.add("is-pulsing");
-  entry.element.addEventListener("animationend", () => {
-    entry.element.classList.remove("is-pulsing");
-  }, { once: true });
-
-  if (extendLifetime && expiration > entry.expiresAt) {
-    entry.expiresAt = expiration;
-    scheduleExpiration(entry);
-  }
-}
-
-function randomPosition(minimum, maximum) {
-  return minimum + Math.random() * (maximum - minimum);
 }
 
 function registerProcessedId(id) {
@@ -115,39 +80,23 @@ function createOrUpdateWord(record) {
   if (!text) return;
 
   const createdAt = Date.parse(record.created_at) || Date.now();
-  const expiresAt = createdAt + WORD_LIFETIME_MS;
   const existing = wordsByText.get(text);
   if (existing) {
-    pulseWord(existing, { extendLifetime: true, expiration: expiresAt });
+    growWord(existing);
     return;
   }
 
   while (wordsByText.size >= MAX_WORDS) {
-    const oldest = [...wordsByText.values()].reduce(
-      (candidate, word) => word.createdAt < candidate.createdAt ? word : candidate
-    );
-    removeWord(oldest);
+    evictOldestWord();
   }
 
   const color = /^#[\da-f]{6}$/i.test(record.cor || "")
     ? record.cor
     : WORD_COLORS[Math.floor(Math.random() * WORD_COLORS.length)];
-  const posX = record.pos_x !== null
-    && record.pos_x !== undefined
-    && Number.isFinite(Number(record.pos_x))
-    ? Math.min(90, Math.max(10, Number(record.pos_x)))
-    : randomPosition(10, 80);
-  const posY = record.pos_y !== null
-    && record.pos_y !== undefined
-    && Number.isFinite(Number(record.pos_y))
-    ? Math.min(80, Math.max(10, Number(record.pos_y)))
-    : randomPosition(15, 75);
   const fontSize = 23 + Math.random() * 10;
 
   const element = document.createElement("div");
   element.className = "cloud-word";
-  element.style.left = `${posX}%`;
-  element.style.top = `${posY}%`;
 
   const label = document.createElement("span");
   label.className = "word-label";
@@ -159,36 +108,23 @@ function createOrUpdateWord(record) {
   element.append(label);
   elements.cloud.append(element);
 
-  const entry = {
-    text,
-    element,
-    label,
-    fontSize,
-    createdAt,
-    expiresAt,
-    isFading: false,
-    expirationTimer: null,
-    fadeTimer: null
-  };
+  const entry = { text, element, label, fontSize, createdAt };
   wordsByText.set(text, entry);
-  scheduleExpiration(entry);
   updateWordCount();
 }
 
 async function loadRecentWords() {
-  const cutoff = new Date(Date.now() - WORD_LIFETIME_MS).toISOString();
   const { data, error } = await supabaseClient
     .from(TABLE_NAME)
-    .select("id,texto,cor,pos_x,pos_y,created_at")
-    .gte("created_at", cutoff)
-    .order("created_at", { ascending: true })
+    .select("id,texto,cor,created_at")
+    .order("created_at", { ascending: false })
     .limit(MAX_WORDS);
 
   if (error) {
     showToast(`Não foi possível carregar a nuvem: ${error.message}`);
     return;
   }
-  data.forEach(createOrUpdateWord);
+  data.reverse().forEach(createOrUpdateWord);
 }
 
 async function addWord(event) {
@@ -207,7 +143,7 @@ async function addWord(event) {
 
   const existing = wordsByText.get(text);
   if (existing) {
-    pulseWord(existing);
+    growWord(existing);
     elements.input.value = "";
     elements.inputCount.textContent = `0/${MAX_WORD_LENGTH}`;
     elements.input.focus();
@@ -221,9 +157,7 @@ async function addWord(event) {
 
   const word = {
     texto: text,
-    cor: WORD_COLORS[Math.floor(Math.random() * WORD_COLORS.length)],
-    pos_x: randomPosition(10, 80),
-    pos_y: randomPosition(15, 75)
+    cor: WORD_COLORS[Math.floor(Math.random() * WORD_COLORS.length)]
   };
 
   elements.submit.disabled = true;
@@ -231,7 +165,7 @@ async function addWord(event) {
     const { data, error } = await supabaseClient
       .from(TABLE_NAME)
       .insert(word)
-      .select("id,texto,cor,pos_x,pos_y,created_at")
+      .select("id,texto,cor,created_at")
       .single();
     if (error) throw error;
 
